@@ -84,3 +84,8 @@ class Invoice(Base):
     vendor: Mapped["Vendor"] = relationship(
         back_populates="invoices"
     )
+
+    line_items: Mapped[list["InvoiceLineItem"]] = relationship(
+    back_populates="invoice",
+    cascade="all, delete-orphan",
+    )
