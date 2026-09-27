@@ -6,6 +6,7 @@ from app.database import engine
 from app.routes.nonprofits import router as nonprofits_router
 from app.routes.vendors import router as vendors_router
 from app.routes.invoices import router as invoices_router
+from app.routes.auth import router as auth_router
 
 
 app = FastAPI(
@@ -16,6 +17,7 @@ app = FastAPI(
 app.include_router(nonprofits_router)
 app.include_router(vendors_router)
 app.include_router(invoices_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
