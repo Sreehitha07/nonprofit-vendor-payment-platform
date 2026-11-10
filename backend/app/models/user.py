@@ -20,6 +20,11 @@ class User(Base):
         ForeignKey("nonprofits.id"),
         nullable=False,
     )
+    
+    vendor_id: Mapped[int | None] = mapped_column(
+    ForeignKey("vendors.id"),
+    nullable=True,
+    )
 
     full_name: Mapped[str] = mapped_column(
         String(255),

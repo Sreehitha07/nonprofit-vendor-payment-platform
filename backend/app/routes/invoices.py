@@ -6,9 +6,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.database import get_db
+from app.dependencies.auth import (
+    ensure_vendor_access,
+    get_current_user,
+)
 from app.models.invoice import Invoice
 from app.models.invoice_line_item import InvoiceLineItem
 from app.models.nonprofit import Nonprofit
+from app.models.user import User
 from app.models.vendor import Vendor
 from app.schemas.invoice import (
     InvoiceCreate,
@@ -37,6 +42,7 @@ def calculate_money(value: Decimal) -> Decimal:
 def create_invoice(
     payload: InvoiceCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     nonprofit = db.get(
         Nonprofit,
@@ -47,6 +53,12 @@ def create_invoice(
         raise HTTPException(
             status_code=404,
             detail="Nonprofit not found",
+        )
+
+    if payload.nonprofit_id != current_user.nonprofit_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot submit invoices for another nonprofit",
         )
 
     vendor = db.get(
@@ -65,6 +77,13 @@ def create_invoice(
             status_code=400,
             detail="Vendor does not belong to this nonprofit",
         )
+
+    if current_user.role == "vendor":
+        if current_user.vendor_id != payload.vendor_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only submit invoices for your own vendor account",
+            )
 
     existing_invoice = db.scalar(
         select(Invoice).where(
@@ -143,27 +162,38 @@ def create_invoice(
     response_model=list[InvoiceResponse],
 )
 def list_invoices(
-    nonprofit_id: int | None = None,
     vendor_id: int | None = None,
     invoice_status: str | None = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     query = (
         select(Invoice)
         .options(
             selectinload(Invoice.line_items)
         )
+        .where(
+            Invoice.nonprofit_id
+            == current_user.nonprofit_id
+        )
         .order_by(
             Invoice.id.desc()
         )
     )
 
-    if nonprofit_id is not None:
+    if current_user.role == "vendor":
+        if current_user.vendor_id is None:
+            raise HTTPException(
+                status_code=403,
+                detail="Vendor account is not linked to a vendor",
+            )
+
         query = query.where(
-            Invoice.nonprofit_id == nonprofit_id
+            Invoice.vendor_id
+            == current_user.vendor_id
         )
 
-    if vendor_id is not None:
+    elif vendor_id is not None:
         query = query.where(
             Invoice.vendor_id == vendor_id
         )
@@ -185,6 +215,7 @@ def list_invoices(
 def get_invoice(
     invoice_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     query = (
         select(Invoice)
@@ -203,5 +234,11 @@ def get_invoice(
             status_code=404,
             detail="Invoice not found",
         )
+
+    ensure_vendor_access(
+        current_user,
+        invoice.vendor_id,
+        invoice.nonprofit_id,
+    )
 
     return invoice

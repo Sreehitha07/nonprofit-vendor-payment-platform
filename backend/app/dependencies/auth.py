@@ -60,3 +60,59 @@ def require_roles(
         return current_user
 
     return role_dependency
+
+def ensure_nonprofit_access(
+    current_user: User,
+    nonprofit_id: int,
+) -> None:
+    if current_user.nonprofit_id != nonprofit_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this nonprofit",
+        )
+
+
+def ensure_vendor_access(
+    current_user: User,
+    vendor_id: int,
+    nonprofit_id: int,
+) -> None:
+    ensure_nonprofit_access(
+        current_user,
+        nonprofit_id,
+    )
+
+    if current_user.role == "vendor":
+        if current_user.vendor_id != vendor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this vendor",
+            )
+
+def ensure_nonprofit_access(
+    current_user: User,
+    nonprofit_id: int,
+) -> None:
+    if current_user.nonprofit_id != nonprofit_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this nonprofit",
+        )
+
+
+def ensure_vendor_access(
+    current_user: User,
+    vendor_id: int,
+    nonprofit_id: int,
+) -> None:
+    ensure_nonprofit_access(
+        current_user,
+        nonprofit_id,
+    )
+
+    if current_user.role == "vendor":
+        if current_user.vendor_id != vendor_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have access to this vendor",
+            )

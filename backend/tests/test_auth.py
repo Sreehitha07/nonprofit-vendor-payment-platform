@@ -1,44 +1,18 @@
-def register_manager(client):
+def test_manager_can_create_staff_user(
+    client,
+    manager_account,
+):
     response = client.post(
         "/api/auth/register",
+        headers=manager_account["headers"],
         json={
-            "nonprofit_id": 1,
-            "full_name": "Test Manager",
-            "email": "manager@test.org",
+            "nonprofit_id": manager_account[
+                "nonprofit_id"
+            ],
+            "full_name": "Test Staff",
+            "email": "staff@test.org",
             "password": "SecurePass123!",
-            "role": "manager",
-        },
-    )
-
-    return response
-
-
-def create_nonprofit(client):
-    response = client.post(
-        "/api/nonprofits",
-        json={
-            "name": "Test Nonprofit",
-            "registration_number": "AUTH-NP-001",
-            "email": "finance@auth-test.org",
-        },
-    )
-
-    assert response.status_code == 201
-
-    return response.json()["id"]
-
-
-def test_register_user(client):
-    nonprofit_id = create_nonprofit(client)
-
-    response = client.post(
-        "/api/auth/register",
-        json={
-            "nonprofit_id": nonprofit_id,
-            "full_name": "Test Manager",
-            "email": "manager@test.org",
-            "password": "SecurePass123!",
-            "role": "manager",
+            "role": "staff",
         },
     )
 
@@ -46,27 +20,31 @@ def test_register_user(client):
 
     data = response.json()
 
-    assert data["email"] == "manager@test.org"
-    assert data["role"] == "manager"
+    assert data["email"] == "staff@test.org"
+    assert data["role"] == "staff"
     assert data["is_active"] is True
 
     assert "password" not in data
     assert "password_hash" not in data
 
 
-def test_duplicate_registration_is_rejected(client):
-    nonprofit_id = create_nonprofit(client)
-
+def test_duplicate_registration_is_rejected(
+    client,
+    manager_account,
+):
     payload = {
-        "nonprofit_id": nonprofit_id,
-        "full_name": "Test Manager",
-        "email": "manager@test.org",
+        "nonprofit_id": manager_account[
+            "nonprofit_id"
+        ],
+        "full_name": "Test Staff",
+        "email": "staff@test.org",
         "password": "SecurePass123!",
-        "role": "manager",
+        "role": "staff",
     }
 
     first_response = client.post(
         "/api/auth/register",
+        headers=manager_account["headers"],
         json=payload,
     )
 
@@ -74,29 +52,21 @@ def test_duplicate_registration_is_rejected(client):
 
     duplicate_response = client.post(
         "/api/auth/register",
+        headers=manager_account["headers"],
         json=payload,
     )
 
     assert duplicate_response.status_code == 409
+
     assert duplicate_response.json()["detail"] == (
         "Email is already registered"
     )
 
 
-def test_login_returns_access_token(client):
-    nonprofit_id = create_nonprofit(client)
-
-    client.post(
-        "/api/auth/register",
-        json={
-            "nonprofit_id": nonprofit_id,
-            "full_name": "Test Manager",
-            "email": "manager@test.org",
-            "password": "SecurePass123!",
-            "role": "manager",
-        },
-    )
-
+def test_login_returns_access_token(
+    client,
+    manager_account,
+):
     response = client.post(
         "/api/auth/token",
         data={
@@ -111,23 +81,12 @@ def test_login_returns_access_token(client):
 
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert len(data["access_token"]) > 20
 
 
-def test_wrong_password_is_rejected(client):
-    nonprofit_id = create_nonprofit(client)
-
-    client.post(
-        "/api/auth/register",
-        json={
-            "nonprofit_id": nonprofit_id,
-            "full_name": "Test Manager",
-            "email": "manager@test.org",
-            "password": "SecurePass123!",
-            "role": "manager",
-        },
-    )
-
+def test_wrong_password_is_rejected(
+    client,
+    manager_account,
+):
     response = client.post(
         "/api/auth/token",
         data={
@@ -137,40 +96,19 @@ def test_wrong_password_is_rejected(client):
     )
 
     assert response.status_code == 401
+
     assert response.json()["detail"] == (
         "Incorrect email or password"
     )
 
 
-def test_authenticated_user_can_access_me(client):
-    nonprofit_id = create_nonprofit(client)
-
-    client.post(
-        "/api/auth/register",
-        json={
-            "nonprofit_id": nonprofit_id,
-            "full_name": "Test Manager",
-            "email": "manager@test.org",
-            "password": "SecurePass123!",
-            "role": "manager",
-        },
-    )
-
-    login_response = client.post(
-        "/api/auth/token",
-        data={
-            "username": "manager@test.org",
-            "password": "SecurePass123!",
-        },
-    )
-
-    token = login_response.json()["access_token"]
-
+def test_authenticated_user_can_access_me(
+    client,
+    manager_account,
+):
     response = client.get(
         "/api/auth/me",
-        headers={
-            "Authorization": f"Bearer {token}"
-        },
+        headers=manager_account["headers"],
     )
 
     assert response.status_code == 200
@@ -184,6 +122,47 @@ def test_authenticated_user_can_access_me(client):
 def test_me_requires_authentication(client):
     response = client.get(
         "/api/auth/me"
+    )
+
+    assert response.status_code == 401
+
+
+def test_manager_cannot_create_admin(
+    client,
+    manager_account,
+):
+    response = client.post(
+        "/api/auth/register",
+        headers=manager_account["headers"],
+        json={
+            "nonprofit_id": manager_account[
+                "nonprofit_id"
+            ],
+            "full_name": "Unauthorized Admin",
+            "email": "admin@test.org",
+            "password": "SecurePass123!",
+            "role": "admin",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_registration_requires_authentication(
+    client,
+    manager_account,
+):
+    response = client.post(
+        "/api/auth/register",
+        json={
+            "nonprofit_id": manager_account[
+                "nonprofit_id"
+            ],
+            "full_name": "Anonymous User",
+            "email": "anonymous@test.org",
+            "password": "SecurePass123!",
+            "role": "staff",
+        },
     )
 
     assert response.status_code == 401

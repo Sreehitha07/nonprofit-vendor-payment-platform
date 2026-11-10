@@ -1,7 +1,13 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    model_validator,
+)
 
 
 UserRole = Literal[
@@ -14,6 +20,7 @@ UserRole = Literal[
 
 class UserRegister(BaseModel):
     nonprofit_id: int
+    vendor_id: int | None = None
 
     full_name: str = Field(
         min_length=2,
@@ -29,10 +36,26 @@ class UserRegister(BaseModel):
 
     role: UserRole = "staff"
 
+    @model_validator(mode="after")
+    def validate_vendor_role(self):
+        if self.role == "vendor" and self.vendor_id is None:
+            raise ValueError(
+                "vendor_id is required for vendor users"
+            )
+
+        if self.role != "vendor" and self.vendor_id is not None:
+            raise ValueError(
+                "vendor_id can only be assigned to vendor users"
+            )
+
+        return self
+
 
 class UserResponse(BaseModel):
     id: int
     nonprofit_id: int
+    vendor_id: int | None
+
     full_name: str
     email: EmailStr
     role: str

@@ -9,7 +9,10 @@ from app.core.security import (
     verify_password,
 )
 from app.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import (
+    get_current_user,
+    require_roles,
+)
 from app.models.nonprofit import Nonprofit
 from app.models.user import User
 from app.schemas.auth import (
@@ -17,6 +20,7 @@ from app.schemas.auth import (
     UserRegister,
     UserResponse,
 )
+from app.models.vendor import Vendor
 
 
 router = APIRouter(
@@ -33,6 +37,9 @@ router = APIRouter(
 def register_user(
     payload: UserRegister,
     db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_roles("manager", "admin")
+    ),
 ):
     nonprofit = db.get(
         Nonprofit,
@@ -43,6 +50,21 @@ def register_user(
         raise HTTPException(
             status_code=404,
             detail="Nonprofit not found",
+        )
+
+    if payload.nonprofit_id != current_user.nonprofit_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You cannot create users for another nonprofit",
+        )
+
+    if (
+        payload.role in {"manager", "admin"}
+        and current_user.role != "admin"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Only an admin can create manager or admin accounts",
         )
 
     existing_user = db.scalar(
@@ -57,8 +79,27 @@ def register_user(
             detail="Email is already registered",
         )
 
+    if payload.role == "vendor":
+        vendor = db.get(
+            Vendor,
+            payload.vendor_id,
+        )
+
+        if not vendor:
+            raise HTTPException(
+                status_code=404,
+                detail="Vendor not found",
+            )
+
+        if vendor.nonprofit_id != payload.nonprofit_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Vendor does not belong to this nonprofit",
+            )
+
     user = User(
         nonprofit_id=payload.nonprofit_id,
+        vendor_id=payload.vendor_id,
         full_name=payload.full_name,
         email=payload.email,
         password_hash=hash_password(
