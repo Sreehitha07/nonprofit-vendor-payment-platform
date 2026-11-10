@@ -7,7 +7,7 @@ from app.routes.nonprofits import router as nonprofits_router
 from app.routes.vendors import router as vendors_router
 from app.routes.invoices import router as invoices_router
 from app.routes.auth import router as auth_router
-
+from app.routes.documents import router as documents_router
 
 app = FastAPI(
     title="Nonprofit Vendor Payment and Transparency Platform",
@@ -18,6 +18,7 @@ app.include_router(nonprofits_router)
 app.include_router(vendors_router)
 app.include_router(invoices_router)
 app.include_router(auth_router)
+app.include_router(documents_router)
 
 
 @app.get("/")

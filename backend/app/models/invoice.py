@@ -89,3 +89,8 @@ class Invoice(Base):
     back_populates="invoice",
     cascade="all, delete-orphan",
     )
+
+    documents: Mapped[list["Document"]] = relationship(
+    back_populates="invoice",
+    cascade="all, delete-orphan",
+    )

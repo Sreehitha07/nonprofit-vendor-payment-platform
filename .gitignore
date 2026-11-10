@@ -16,3 +16,7 @@ frontend/dist/
 
 # IDE
 .vscode/
+
+# Uploaded invoice documents
+backend/uploads/*
+!backend/uploads/.gitkeep

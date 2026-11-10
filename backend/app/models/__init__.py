@@ -3,6 +3,7 @@ from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.invoice import Invoice
 from app.models.invoice_line_item import InvoiceLineItem
+from app.models.document import Document
 
 __all__ = [
     "Nonprofit",
@@ -10,4 +11,5 @@ __all__ = [
     "Vendor",
     "Invoice",
     "InvoiceLineItem",
+    "Document",
 ]
