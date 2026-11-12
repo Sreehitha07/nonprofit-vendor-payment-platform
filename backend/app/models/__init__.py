@@ -5,7 +5,8 @@ from app.models.invoice import Invoice
 from app.models.invoice_line_item import InvoiceLineItem
 from app.models.document import Document
 from app.models.invoice_review import InvoiceReview
-
+from app.models.payment import Payment
+from app.models.audit_log import AuditLog
 __all__ = [
     "Nonprofit",
     "User",
@@ -14,4 +15,6 @@ __all__ = [
     "InvoiceLineItem",
     "Document",
     "InvoiceReview",
+    "Payment",
+    "AuditLog",
 ]
