@@ -94,3 +94,8 @@ class Invoice(Base):
     back_populates="invoice",
     cascade="all, delete-orphan",
     )
+
+    reviews: Mapped[list["InvoiceReview"]] = relationship(
+    back_populates="invoice",
+    cascade="all, delete-orphan",
+    )
