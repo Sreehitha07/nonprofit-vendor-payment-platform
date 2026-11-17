@@ -20,8 +20,10 @@ function AppLayout() {
         const data = await apiRequest(
           "/api/notifications/unread-count"
         );
-
-        setUnreadCount(data.unread_count ?? 0);
+  
+        setUnreadCount(
+          data.unread_count ?? 0
+        );
       } catch (error) {
         console.error(
           "Failed to load notification count:",
@@ -29,8 +31,27 @@ function AppLayout() {
         );
       }
     };
-
+  
     loadUnreadCount();
+  
+    window.addEventListener(
+      "notifications-updated",
+      loadUnreadCount
+    );
+  
+    const interval = setInterval(
+      loadUnreadCount,
+      30000
+    );
+  
+    return () => {
+      window.removeEventListener(
+        "notifications-updated",
+        loadUnreadCount
+      );
+  
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogout = () => {
