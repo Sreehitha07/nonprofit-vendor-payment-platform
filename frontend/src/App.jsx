@@ -13,6 +13,7 @@ import VendorsPage from "./pages/VendorsPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import AuditLogsPage from "./pages/AuditLogsPage";
+import InvoiceDetailPage from "./pages/InvoiceDetailPage";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 
@@ -44,6 +45,11 @@ function App() {
         <Route
           path="/invoices"
           element={<InvoicesPage />}
+        />
+
+        <Route
+          path="/invoices/:invoiceId"
+          element={<InvoiceDetailPage />}
         />
 
         <Route

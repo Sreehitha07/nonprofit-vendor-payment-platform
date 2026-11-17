@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../services/api";
+import { Link } from "react-router";
 
 const emptyLineItem = () => ({
   description: "",
@@ -750,11 +751,12 @@ function InvoicesPage() {
                   (invoice) => (
                     <tr key={invoice.id}>
                       <td>
-                        <strong>
-                          {
-                            invoice.invoice_number
-                          }
-                        </strong>
+                        <Link
+                          className= "invoice-link"
+                          to={`/invoices/${invoice.id}`}
+                        >
+                            {invoice.invoice_number}
+                        </Link>
                       </td>
 
                       <td>

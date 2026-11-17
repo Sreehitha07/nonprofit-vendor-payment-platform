@@ -13,6 +13,7 @@ from app.dependencies.auth import (
     get_current_user,
     require_roles,
 )
+from app.models.document import Document
 from app.models.invoice import Invoice
 from app.models.invoice_review import InvoiceReview
 from app.models.user import User
@@ -21,6 +22,10 @@ from app.schemas.invoice_review import (
     InvoiceResubmitRequest,
     InvoiceReviewResponse,
     InvoiceStartReviewRequest,
+)
+from app.services.notifications import (
+    notify_managers_and_admins,
+    notify_vendor_users,
 )
 
 
@@ -123,6 +128,19 @@ def start_invoice_review(
         new_status="under_review",
         comments=payload.comments,
     )
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type="invoice_under_review",
+        title="Invoice under review",
+        message=(
+            f"Invoice {invoice.invoice_number} "
+            "is now under review."
+            ),
+        entity_type="invoice",
+        entity_id=invoice.id,
+    )
 
     db.commit()
     db.refresh(review)
@@ -180,6 +198,41 @@ def make_invoice_decision(
         new_status=payload.decision,
         comments=payload.comments,
     )
+    if payload.decision == "approved":
+        notification_type = "invoice_approved"
+        title = "Invoice approved"
+        message = (
+            f"Invoice {invoice.invoice_number} "
+            "has been approved."
+            )
+
+    elif payload.decision == "rejected":
+        notification_type = "invoice_rejected"
+        title = "Invoice rejected"
+        message = (
+            f"Invoice {invoice.invoice_number} "
+            f"was rejected. Reason: {payload.comments}"
+            )
+
+    else:
+        notification_type = "invoice_needs_documents"
+        title = "Additional documents required"
+        message = (
+            f"Additional documents are required for "
+            f"invoice {invoice.invoice_number}. "
+            f"{payload.comments}"
+            )
+
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type=notification_type,
+        title=title,
+        message=message,
+        entity_type="invoice",
+        entity_id=invoice.id,
+    )
 
     db.commit()
     db.refresh(review)
@@ -214,6 +267,48 @@ def resubmit_invoice(
                 "documents can be resubmitted"
             ),
         )
+    latest_document_request = db.scalar(
+    select(InvoiceReview)
+    .where(
+        InvoiceReview.invoice_id == invoice.id,
+        InvoiceReview.action
+        == "requested_documents",
+    )
+    .order_by(
+        InvoiceReview.created_at.desc(),
+        InvoiceReview.id.desc(),
+    )
+    .limit(1)
+    )
+
+    if not latest_document_request:
+        raise HTTPException(
+            status_code=409,
+            detail="No document request was found for this invoice",
+        )
+
+
+    new_vendor_document = db.scalar(
+        select(Document.id)
+        .where(
+            Document.invoice_id == invoice.id,
+            Document.uploaded_by_user_id
+            == current_user.id,
+            Document.uploaded_at
+            >= latest_document_request.created_at,
+        )
+        .limit(1)
+    )
+
+    if not new_vendor_document:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No document is uploaded. "
+                "Please upload the requested document "
+                "before resubmitting."
+            ),
+        )
 
     previous_status = invoice.status
 
@@ -228,6 +323,19 @@ def resubmit_invoice(
         new_status="submitted",
         comments=payload.comments,
     )
+
+    notify_managers_and_admins(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        notification_type="invoice_resubmitted",
+        title="Invoice resubmitted",
+        message=(
+            f"Invoice {invoice.invoice_number} "
+            "has been resubmitted for review."
+            ),
+        entity_type="invoice",
+        entity_id=invoice.id,
+        )
 
     db.commit()
     db.refresh(review)
