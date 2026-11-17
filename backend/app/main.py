@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -8,20 +9,29 @@ from app.routes.vendors import router as vendors_router
 from app.routes.invoices import router as invoices_router
 from app.routes.auth import router as auth_router
 from app.routes.documents import router as documents_router
-from app.routes.invoice_reviews import (
-    router as invoice_reviews_router,
-)
-from app.routes.payments import (
-    router as payments_router,
-)
+from app.routes.invoice_reviews import router as invoice_reviews_router
+from app.routes.payments import router as payments_router
+from app.routes.audit_logs import router as audit_logs_router
+from app.routes.notifications import router as notifications_router
+from app.routes.dashboard import router as dashboard_router
 
-from app.routes.audit_logs import (
-    router as audit_logs_router,
-)
+
 app = FastAPI(
     title="Nonprofit Vendor Payment and Transparency Platform",
     version="0.1.0",
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 app.include_router(nonprofits_router)
 app.include_router(vendors_router)
@@ -31,6 +41,8 @@ app.include_router(documents_router)
 app.include_router(invoice_reviews_router)
 app.include_router(payments_router)
 app.include_router(audit_logs_router)
+app.include_router(notifications_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/")
