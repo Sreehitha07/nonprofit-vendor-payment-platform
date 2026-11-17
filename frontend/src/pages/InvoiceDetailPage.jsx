@@ -22,6 +22,7 @@ import {
   
     const [invoice, setInvoice] = useState(null);
     const [vendor, setVendor] = useState(null);
+    const [resubmitError, setResubmitError] = useState("");
     const [documents, setDocuments] = useState([]);
     const [reviews, setReviews] = useState([]);
   
@@ -426,8 +427,9 @@ import {
         );
   
         const handleResubmit = async () => {
+            setResubmitError("");
             if (!hasNewVendorDocument) {
-              setError(
+              setResubmitError(
                 "No document is uploaded. Please upload the requested document before resubmitting."
               );
               return;
@@ -459,7 +461,7 @@ import {
   
         await loadInvoiceData();
       } catch (err) {
-        setError(err.message);
+        setResubmitError(err.message);
       } finally {
         setActionLoading(false);
       }
@@ -939,6 +941,11 @@ import {
                     placeholder="Describe the additional documents or changes"
                   />
                 </div>
+                {resubmitError && (
+                    <div className="inline-action-error">
+                        {resubmitError}
+                    </div>
+                )}
   
                 <button
                   className="primary-button"

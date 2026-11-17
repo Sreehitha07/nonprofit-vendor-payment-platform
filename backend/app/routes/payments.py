@@ -24,6 +24,7 @@ from app.schemas.payment import (
     PaymentResponse,
 )
 from app.services.audit import create_audit_log
+from app.services.notifications import notify_vendor_users
 
 
 router = APIRouter(
@@ -150,6 +151,20 @@ def schedule_payment(
             f"{invoice.invoice_number}"
         ),
     )
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type="payment_scheduled",
+        title="Payment scheduled",
+        message=(
+            f"Payment for invoice "
+            f"{invoice.invoice_number} "
+            "has been scheduled."
+        ),
+        entity_type="payment",
+        entity_id=payment.id,
+    )
 
     db.commit()
     db.refresh(payment)
@@ -206,6 +221,21 @@ def start_payment_processing(
             f"Payment processing started for "
             f"invoice {invoice.invoice_number}"
         ),
+    )
+
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type="payment_processing",
+        title="Payment processing",
+        message=(
+            f"Payment for invoice "
+            f"{invoice.invoice_number} "
+            "is now processing."
+            ),
+        entity_type="payment",
+        entity_id=payment.id,
     )
 
     db.commit()
@@ -270,6 +300,22 @@ def complete_payment(
             f"{payment.transaction_reference}"
         ),
     )
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type="payment_completed",
+        title="Payment completed",
+        message=(
+            f"Payment for invoice "
+            f"{invoice.invoice_number} "
+            "has been completed. "
+            f"Transaction reference: "
+            f"{payment.transaction_reference}"
+        ),
+        entity_type="payment",
+        entity_id=payment.id,
+        )
 
     db.commit()
     db.refresh(payment)
@@ -323,6 +369,20 @@ def fail_payment(
         new_status="failed",
         description=payload.reason,
     )
+    notify_vendor_users(
+        db=db,
+        nonprofit_id=invoice.nonprofit_id,
+        vendor_id=invoice.vendor_id,
+        notification_type="payment_failed",
+        title="Payment failed",
+        message=(
+            f"Payment for invoice "
+            f"{invoice.invoice_number} "
+            f"failed. Reason: {payload.reason}"
+        ),
+        entity_type="payment",
+        entity_id=payment.id,
+)
 
     db.commit()
     db.refresh(payment)

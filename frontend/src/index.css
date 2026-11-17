@@ -1434,3 +1434,17 @@ td {
     width: 100%;
   }
 }
+.inline-action-error {
+  margin: 12px 0;
+
+  padding: 10px 12px;
+
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+
+  background: #fef2f2;
+  color: #b91c1c;
+
+  font-size: 12px;
+  font-weight: 600;
+}

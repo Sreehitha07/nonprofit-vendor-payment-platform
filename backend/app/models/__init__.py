@@ -7,6 +7,7 @@ from app.models.document import Document
 from app.models.invoice_review import InvoiceReview
 from app.models.payment import Payment
 from app.models.audit_log import AuditLog
+from app.models.notification import Notification
 __all__ = [
     "Nonprofit",
     "User",
@@ -17,4 +18,5 @@ __all__ = [
     "InvoiceReview",
     "Payment",
     "AuditLog",
+    "Notification",
 ]

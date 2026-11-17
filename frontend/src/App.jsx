@@ -5,6 +5,7 @@ import {
 } from "react-router";
 
 import AppLayout from "./layouts/AppLayout";
+import RoleRoute from "./routes/RoleRoute";
 
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -39,7 +40,17 @@ function App() {
 
         <Route
           path="/vendors"
-          element={<VendorsPage />}
+          element={
+            <RoleRoute
+              allowedRoles={[
+                "staff",
+                "manager",
+                "admin",
+              ]}
+            >
+              <VendorsPage />
+            </RoleRoute>
+          }
         />
 
         <Route
@@ -64,7 +75,17 @@ function App() {
 
         <Route
           path="/audit-logs"
-          element={<AuditLogsPage />}
+          element={
+            <RoleRoute
+              allowedRoles={[
+                "staff",
+                "manager",
+                "admin",
+              ]}
+            >
+              <AuditLogsPage />
+            </RoleRoute>
+          }
         />
       </Route>
 
