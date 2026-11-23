@@ -8,6 +8,7 @@ from app.models.invoice_review import InvoiceReview
 from app.models.payment import Payment
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
+from app.models.ai_invoice_analysis import AIInvoiceAnalysis
 __all__ = [
     "Nonprofit",
     "User",
@@ -19,4 +20,5 @@ __all__ = [
     "Payment",
     "AuditLog",
     "Notification",
+    "AIInvoiceAnalysis",
 ]

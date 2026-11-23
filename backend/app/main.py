@@ -14,6 +14,9 @@ from app.routes.payments import router as payments_router
 from app.routes.audit_logs import router as audit_logs_router
 from app.routes.notifications import router as notifications_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.ai_analysis import (
+    router as ai_analysis_router,
+)
 
 
 app = FastAPI(
@@ -43,6 +46,9 @@ app.include_router(payments_router)
 app.include_router(audit_logs_router)
 app.include_router(notifications_router)
 app.include_router(dashboard_router)
+app.include_router(
+    ai_analysis_router
+)
 
 
 @app.get("/")
