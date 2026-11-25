@@ -1,64 +1,65 @@
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
-from langgraph.graph import END, START, StateGraph
+from langgraph.graph import (
+    END,
+    START,
+    StateGraph,
+)
 
 
-class InvoiceAgentState(TypedDict, total=False):
+class InvoiceAgentState(
+    TypedDict,
+    total=False,
+):
     """
-    Shared state passed through the invoice review agent graph.
+    Shared state for the invoice review agent.
 
-    The graph does not make final financial decisions.
-    It produces a grounded recommendation for a human reviewer.
+    The graph generates recommendations only.
+    Final financial decisions remain human-controlled.
     """
 
     invoice_id: int
 
-    # Existing Day 16 / Day 17 analysis data
+    # Existing Day 16 / 17 analysis
     analysis_result: dict[str, Any]
     policy_evidence: list[dict[str, Any]]
 
-    # Completeness stage
+    # Completeness
     completeness_score: int
     missing_fields: list[str]
     completeness_status: str
 
-    # Risk stage
+    # Risk
     duplicate_risk: bool
     possible_duplicate_invoice_id: int | None
     risk_level: str
     risk_reasons: list[str]
 
-    # Policy stage
+    # RAG
     policy_context_available: bool
     policy_evidence_count: int
 
-    # Recommendation stage
+    # Agent recommendation
     recommendation: str
     recommendation_reasons: list[str]
 
-    # Human-in-the-loop stage
+    # Human-in-the-loop guardrail
     human_review_required: bool
     final_decision_allowed: bool
 
-    # Explainability / execution trace
+    # Explainability
     agent_trace: list[str]
+
+
+# ============================================================
+# NODE 1
+# ANALYSIS INTAKE
+# ============================================================
 
 
 def analysis_intake_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Read the existing local invoice analysis result.
-
-    Day 16 already performs:
-    - document extraction
-    - completeness analysis
-    - duplicate detection
-    - deterministic risk analysis
-
-    The LangGraph workflow orchestrates those results rather
-    than duplicating the underlying analysis logic.
-    """
 
     analysis = state.get(
         "analysis_result",
@@ -84,6 +85,7 @@ def analysis_intake_node(
             )
             or 0
         ),
+
         "missing_fields": list(
             analysis.get(
                 "missing_fields",
@@ -91,16 +93,19 @@ def analysis_intake_node(
             )
             or []
         ),
+
         "duplicate_risk": bool(
             analysis.get(
                 "duplicate_risk",
                 False,
             )
         ),
+
         "possible_duplicate_invoice_id":
             analysis.get(
                 "possible_duplicate_invoice_id"
             ),
+
         "risk_level": (
             analysis.get(
                 "risk_level",
@@ -108,6 +113,7 @@ def analysis_intake_node(
             )
             or "needs_review"
         ),
+
         "risk_reasons": list(
             analysis.get(
                 "risk_reasons",
@@ -115,17 +121,20 @@ def analysis_intake_node(
             )
             or []
         ),
+
         "agent_trace": trace,
     }
+
+
+# ============================================================
+# NODE 2
+# COMPLETENESS
+# ============================================================
 
 
 def completeness_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Evaluate whether the invoice appears complete enough
-    for a human reviewer to continue.
-    """
 
     score = state.get(
         "completeness_score",
@@ -160,19 +169,69 @@ def completeness_node(
         )
     )
 
+    if status == "incomplete":
+        trace.append(
+            (
+                "Routing: incomplete invoice "
+                "-> document request path."
+            )
+        )
+
+    else:
+        trace.append(
+            (
+                "Routing: completeness passed "
+                "-> risk review path."
+            )
+        )
+
     return {
         "completeness_status": status,
         "agent_trace": trace,
     }
 
 
+# ============================================================
+# ROUTER 1
+# COMPLETENESS ROUTING
+# ============================================================
+
+
+def route_after_completeness(
+    state: InvoiceAgentState,
+) -> Literal[
+    "risk_check",
+    "policy_context",
+]:
+    """
+    Incomplete invoices do not need another
+    agent-level risk evaluation before being
+    recommended for additional documentation.
+
+    Complete / reviewable invoices continue
+    through risk evaluation.
+    """
+
+    if (
+        state.get(
+            "completeness_status"
+        )
+        == "incomplete"
+    ):
+        return "policy_context"
+
+    return "risk_check"
+
+
+# ============================================================
+# NODE 3
+# RISK CHECK
+# ============================================================
+
+
 def risk_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Normalize the deterministic duplicate and risk signals
-    generated by the existing invoice analysis service.
-    """
 
     duplicate_risk = state.get(
         "duplicate_risk",
@@ -193,7 +252,10 @@ def risk_node(
 
     if (
         duplicate_risk
-        and "Possible duplicate invoice detected."
+        and (
+            "Possible duplicate invoice "
+            "detected."
+        )
         not in risk_reasons
     ):
         risk_reasons.append(
@@ -211,26 +273,29 @@ def risk_node(
         (
             "Risk check: "
             f"{risk_level}; "
-            f"duplicate risk={duplicate_risk}."
+            f"duplicate risk="
+            f"{duplicate_risk}."
         )
     )
 
     return {
-        "risk_reasons": risk_reasons,
-        "agent_trace": trace,
+        "risk_reasons":
+            risk_reasons,
+
+        "agent_trace":
+            trace,
     }
+
+
+# ============================================================
+# NODE 4
+# POLICY RAG CONTEXT
+# ============================================================
 
 
 def policy_context_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Inspect the policy evidence retrieved by the Day 17
-    local RAG pipeline.
-
-    This node does not invent policy information.
-    It only records whether grounded policy evidence exists.
-    """
 
     evidence = state.get(
         "policy_evidence",
@@ -269,110 +334,86 @@ def policy_context_node(
     return {
         "policy_context_available":
             evidence_count > 0,
+
         "policy_evidence_count":
             evidence_count,
-        "agent_trace": trace,
+
+        "agent_trace":
+            trace,
     }
 
 
-def recommendation_node(
+# ============================================================
+# ROUTER 2
+# RECOMMENDATION PATH
+# ============================================================
+
+
+def route_after_policy_context(
+    state: InvoiceAgentState,
+) -> Literal[
+    "needs_documents_recommendation",
+    "high_attention_recommendation",
+    "standard_recommendation",
+]:
+    """
+    Select the appropriate recommendation path.
+
+    Priority:
+    1. Missing information
+    2. Duplicate / high attention
+    3. Standard review
+    """
+
+    if (
+        state.get(
+            "completeness_status"
+        )
+        == "incomplete"
+    ):
+        return (
+            "needs_documents_recommendation"
+        )
+
+    if (
+        state.get(
+            "duplicate_risk",
+            False,
+        )
+        or state.get(
+            "risk_level"
+        )
+        == "high_attention"
+    ):
+        return (
+            "high_attention_recommendation"
+        )
+
+    return "standard_recommendation"
+
+
+# ============================================================
+# NODE 5A
+# NEEDS DOCUMENTS RECOMMENDATION
+# ============================================================
+
+
+def needs_documents_recommendation_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Generate a deterministic review recommendation.
-
-    This is deliberately rule-based and local.
-    It does not approve or reject invoices.
-    """
-
-    completeness_status = state.get(
-        "completeness_status",
-        "needs_review",
-    )
-
-    duplicate_risk = state.get(
-        "duplicate_risk",
-        False,
-    )
-
-    risk_level = state.get(
-        "risk_level",
-        "needs_review",
-    )
 
     missing_fields = state.get(
         "missing_fields",
         [],
     )
 
-    risk_reasons = state.get(
-        "risk_reasons",
-        [],
-    )
-
-    policy_available = state.get(
-        "policy_context_available",
-        False,
-    )
-
-    reasons: list[str] = []
-
-    # Highest-priority condition:
-    # suspected duplicate.
-    if duplicate_risk:
-        recommendation = "high_attention"
-
-        reasons.append(
-            (
-                "The invoice may duplicate "
-                "an existing invoice."
-            )
+    reasons = [
+        (
+            "Required invoice information "
+            "or supporting documentation "
+            "is missing."
         )
-
-    # Missing required information.
-    elif completeness_status == "incomplete":
-        recommendation = "needs_documents"
-
-        reasons.append(
-            (
-                "Required invoice information "
-                "or supporting documentation "
-                "is missing."
-            )
-        )
-
-    # Existing deterministic analysis found
-    # a high-risk condition.
-    elif risk_level == "high_attention":
-        recommendation = "high_attention"
-
-        reasons.append(
-            (
-                "The deterministic risk analysis "
-                "identified a high-attention condition."
-            )
-        )
-
-    # Medium / review-level conditions.
-    elif risk_level == "needs_review":
-        recommendation = "needs_review"
-
-        reasons.append(
-            (
-                "The invoice contains conditions "
-                "that should be reviewed manually."
-            )
-        )
-
-    else:
-        recommendation = "low_risk"
-
-        reasons.append(
-            (
-                "No major automated risk signal "
-                "was detected."
-            )
-        )
+    ]
 
     if missing_fields:
         reasons.append(
@@ -380,9 +421,213 @@ def recommendation_node(
                 "Missing fields: "
                 + ", ".join(
                     str(field)
-                    for field in missing_fields
+                    for field
+                    in missing_fields
                 )
                 + "."
+            )
+        )
+
+    if state.get(
+        "policy_context_available",
+        False,
+    ):
+        reasons.append(
+            (
+                "Relevant nonprofit policy "
+                "evidence was retrieved for "
+                "reviewer reference."
+            )
+        )
+
+    else:
+        reasons.append(
+            (
+                "No sufficiently relevant "
+                "policy evidence was retrieved; "
+                "manual policy verification "
+                "may be needed."
+            )
+        )
+
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    trace.append(
+        (
+            "Conditional route selected: "
+            "needs documents."
+        )
+    )
+
+    trace.append(
+        (
+            "Recommendation generated: "
+            "needs_documents."
+        )
+    )
+
+    return {
+        "recommendation":
+            "needs_documents",
+
+        "recommendation_reasons":
+            reasons,
+
+        "agent_trace":
+            trace,
+    }
+
+
+# ============================================================
+# NODE 5B
+# HIGH ATTENTION RECOMMENDATION
+# ============================================================
+
+
+def high_attention_recommendation_node(
+    state: InvoiceAgentState,
+) -> dict[str, Any]:
+
+    reasons: list[str] = []
+
+    if state.get(
+        "duplicate_risk",
+        False,
+    ):
+        reasons.append(
+            (
+                "The invoice may duplicate "
+                "an existing invoice."
+            )
+        )
+
+    if (
+        state.get(
+            "risk_level"
+        )
+        == "high_attention"
+    ):
+        reasons.append(
+            (
+                "The deterministic risk "
+                "analysis identified a "
+                "high-attention condition."
+            )
+        )
+
+    for reason in state.get(
+        "risk_reasons",
+        [],
+    ):
+        if reason not in reasons:
+            reasons.append(
+                str(reason)
+            )
+
+    if state.get(
+        "policy_context_available",
+        False,
+    ):
+        reasons.append(
+            (
+                "Relevant nonprofit policy "
+                "evidence was retrieved for "
+                "reviewer reference."
+            )
+        )
+
+    else:
+        reasons.append(
+            (
+                "No sufficiently relevant "
+                "policy evidence was retrieved; "
+                "manual policy verification "
+                "may be needed."
+            )
+        )
+
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    trace.append(
+        (
+            "Conditional route selected: "
+            "high attention."
+        )
+    )
+
+    trace.append(
+        (
+            "Recommendation generated: "
+            "high_attention."
+        )
+    )
+
+    return {
+        "recommendation":
+            "high_attention",
+
+        "recommendation_reasons":
+            reasons,
+
+        "agent_trace":
+            trace,
+    }
+
+
+# ============================================================
+# NODE 5C
+# STANDARD RECOMMENDATION
+# ============================================================
+
+
+def standard_recommendation_node(
+    state: InvoiceAgentState,
+) -> dict[str, Any]:
+
+    risk_level = state.get(
+        "risk_level",
+        "needs_review",
+    )
+
+    risk_reasons = state.get(
+        "risk_reasons",
+        [],
+    )
+
+    reasons: list[str] = []
+
+    if risk_level == "needs_review":
+        recommendation = (
+            "needs_review"
+        )
+
+        reasons.append(
+            (
+                "The invoice contains "
+                "conditions that should "
+                "be reviewed manually."
+            )
+        )
+
+    else:
+        recommendation = (
+            "low_risk"
+        )
+
+        reasons.append(
+            (
+                "No major automated "
+                "risk signal was detected."
             )
         )
 
@@ -392,20 +637,25 @@ def recommendation_node(
                 str(reason)
             )
 
-    if policy_available:
+    if state.get(
+        "policy_context_available",
+        False,
+    ):
         reasons.append(
             (
-                "Relevant nonprofit policy evidence "
-                "was retrieved for reviewer reference."
+                "Relevant nonprofit policy "
+                "evidence was retrieved for "
+                "reviewer reference."
             )
         )
 
     else:
         reasons.append(
             (
-                "No sufficiently relevant policy "
-                "evidence was retrieved; manual "
-                "policy verification may be needed."
+                "No sufficiently relevant "
+                "policy evidence was retrieved; "
+                "manual policy verification "
+                "may be needed."
             )
         )
 
@@ -413,6 +663,13 @@ def recommendation_node(
         state.get(
             "agent_trace",
             [],
+        )
+    )
+
+    trace.append(
+        (
+            "Conditional route selected: "
+            "standard review."
         )
     )
 
@@ -426,22 +683,24 @@ def recommendation_node(
     return {
         "recommendation":
             recommendation,
+
         "recommendation_reasons":
             reasons,
+
         "agent_trace":
             trace,
     }
 
 
+# ============================================================
+# NODE 6
+# HUMAN REVIEW BOUNDARY
+# ============================================================
+
+
 def human_review_node(
     state: InvoiceAgentState,
 ) -> dict[str, Any]:
-    """
-    Enforce the human-in-the-loop boundary.
-
-    The agent may recommend actions, but it is never allowed
-    to make the final approve/reject/payment decision.
-    """
 
     trace = list(
         state.get(
@@ -458,15 +717,44 @@ def human_review_node(
     )
 
     return {
-        "human_review_required": True,
-        "final_decision_allowed": False,
-        "agent_trace": trace,
+        "human_review_required":
+            True,
+
+        "final_decision_allowed":
+            False,
+
+        "agent_trace":
+            trace,
     }
+
+
+# ============================================================
+# GRAPH
+# ============================================================
 
 
 def build_invoice_agent_graph():
     """
-    Build and compile the local invoice review agent graph.
+    Build the conditional LangGraph workflow.
+
+    Flow:
+
+    analysis
+        ↓
+    completeness
+        ├─ incomplete ─────────────┐
+        │                          ↓
+        └─ complete/reviewable → risk
+                                   ↓
+                              policy context
+                                   ↓
+                        conditional recommendation
+                         /          |          \
+                needs docs     high attention   standard
+                         \          |          /
+                              human review
+                                   ↓
+                                  END
     """
 
     builder = StateGraph(
@@ -494,8 +782,18 @@ def build_invoice_agent_graph():
     )
 
     builder.add_node(
-        "recommendation",
-        recommendation_node,
+        "needs_documents_recommendation",
+        needs_documents_recommendation_node,
+    )
+
+    builder.add_node(
+        "high_attention_recommendation",
+        high_attention_recommendation_node,
+    )
+
+    builder.add_node(
+        "standard_recommendation",
+        standard_recommendation_node,
     )
 
     builder.add_node(
@@ -503,6 +801,7 @@ def build_invoice_agent_graph():
         human_review_node,
     )
 
+    # Entry
     builder.add_edge(
         START,
         "analysis_intake",
@@ -513,23 +812,56 @@ def build_invoice_agent_graph():
         "completeness_check",
     )
 
-    builder.add_edge(
+    # CONDITIONAL ROUTE #1
+    builder.add_conditional_edges(
         "completeness_check",
-        "risk_check",
+        route_after_completeness,
+        {
+            "risk_check":
+                "risk_check",
+
+            "policy_context":
+                "policy_context",
+        },
     )
 
+    # Complete invoices pass through
+    # the risk stage before policy grounding.
     builder.add_edge(
         "risk_check",
         "policy_context",
     )
 
-    builder.add_edge(
+    # CONDITIONAL ROUTE #2
+    builder.add_conditional_edges(
         "policy_context",
-        "recommendation",
+        route_after_policy_context,
+        {
+            "needs_documents_recommendation":
+                "needs_documents_recommendation",
+
+            "high_attention_recommendation":
+                "high_attention_recommendation",
+
+            "standard_recommendation":
+                "standard_recommendation",
+        },
+    )
+
+    # Every recommendation still ends
+    # at the human review boundary.
+    builder.add_edge(
+        "needs_documents_recommendation",
+        "human_review",
     )
 
     builder.add_edge(
-        "recommendation",
+        "high_attention_recommendation",
+        "human_review",
+    )
+
+    builder.add_edge(
+        "standard_recommendation",
         "human_review",
     )
 
@@ -546,44 +878,38 @@ invoice_agent_graph = (
 )
 
 
+# ============================================================
+# PUBLIC SERVICE FUNCTION
+# ============================================================
+
+
 def run_invoice_agent(
     invoice_id: int,
     analysis_result: dict[str, Any],
-    policy_evidence: list[dict[str, Any]]
-    | None = None,
+    policy_evidence: (
+        list[dict[str, Any]]
+        | None
+    ) = None,
 ) -> InvoiceAgentState:
-    """
-    Run the local LangGraph invoice review workflow.
-
-    Parameters
-    ----------
-    invoice_id:
-        Invoice being reviewed.
-
-    analysis_result:
-        Existing Day 16/17 local invoice analysis output.
-
-    policy_evidence:
-        Existing Day 17 RAG evidence.
-
-    Returns
-    -------
-    InvoiceAgentState:
-        Final graph state containing the recommendation,
-        reasoning summary, trace, and human-review guardrail.
-    """
 
     initial_state: InvoiceAgentState = {
-        "invoice_id": invoice_id,
+        "invoice_id":
+            invoice_id,
+
         "analysis_result":
             analysis_result,
+
         "policy_evidence":
             policy_evidence or [],
-        "agent_trace": [],
+
+        "agent_trace":
+            [],
     }
 
-    result = invoice_agent_graph.invoke(
-        initial_state
+    result = (
+        invoice_agent_graph.invoke(
+            initial_state
+        )
     )
 
     return result

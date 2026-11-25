@@ -1661,6 +1661,96 @@ function InvoiceDetailPage() {
                                         </div>
 
                                     </div>
+                                    {/* AGENT ROUTE */}
+
+                                    <div className="agent-route-section">
+
+                                        <h4>
+                                            Agent Route Taken
+                                        </h4>
+
+                                        <div className="agent-route-flow">
+
+                                            <span className="agent-route-step">
+                                                Analysis
+                                            </span>
+
+                                            <span className="agent-route-arrow">
+                                                →
+                                            </span>
+
+                                            <span className="agent-route-step">
+                                                Completeness
+                                            </span>
+
+                                            <span className="agent-route-arrow">
+                                                →
+                                            </span>
+
+
+                                            {aiAnalysis
+                                                .extracted_data
+                                                .agent
+                                                .agent_trace
+                                                ?.some(
+                                                    (step) =>
+                                                        step.startsWith(
+                                                            "Risk check:"
+                                                        )
+                                                ) && (
+                                                    <>
+                                                        <span className="agent-route-step">
+                                                            Risk
+                                                        </span>
+
+                                                        <span className="agent-route-arrow">
+                                                            →
+                                                        </span>
+                                                    </>
+                                                )}
+
+
+                                            <span className="agent-route-step">
+                                                Policy RAG
+                                            </span>
+
+                                            <span className="agent-route-arrow">
+                                                →
+                                            </span>
+
+
+                                            <span
+                                                className={
+                                                    `agent-route-step agent-route-result agent-route-${aiAnalysis
+                                                        .extracted_data
+                                                        .agent
+                                                        .recommendation
+                                                    }`
+                                                }
+                                            >
+                                                {
+                                                    aiAnalysis
+                                                        .extracted_data
+                                                        .agent
+                                                        .recommendation
+                                                        ?.replaceAll(
+                                                            "_",
+                                                            " "
+                                                        )
+                                                }
+                                            </span>
+
+                                            <span className="agent-route-arrow">
+                                                →
+                                            </span>
+
+                                            <span className="agent-route-step agent-route-human">
+                                                Human Review
+                                            </span>
+
+                                        </div>
+
+                                    </div>
 
 
                                     <div className="agentic-review-section">
