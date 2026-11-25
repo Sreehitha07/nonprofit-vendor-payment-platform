@@ -20,3 +20,6 @@ frontend/dist/
 # Uploaded invoice documents
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+policy_uploads/*
+!policy_uploads/.gitkeep

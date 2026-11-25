@@ -17,6 +17,9 @@ from app.routes.dashboard import router as dashboard_router
 from app.routes.ai_analysis import (
     router as ai_analysis_router,
 )
+from app.routes.policies import (
+    router as policies_router,
+)
 
 
 app = FastAPI(
@@ -48,6 +51,9 @@ app.include_router(notifications_router)
 app.include_router(dashboard_router)
 app.include_router(
     ai_analysis_router
+)
+app.include_router(
+    policies_router
 )
 
 

@@ -9,6 +9,8 @@ from app.models.payment import Payment
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.ai_invoice_analysis import AIInvoiceAnalysis
+from app.models.policy_document import PolicyDocument
+from app.models.policy_chunk import PolicyChunk
 __all__ = [
     "Nonprofit",
     "User",

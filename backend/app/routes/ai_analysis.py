@@ -34,7 +34,9 @@ from app.services.invoice_analysis import (
     analyze_invoice_rules,
     compare_extracted_invoice,
 )
-
+from app.services.invoice_policy_rag import (
+    retrieve_invoice_policy_evidence,
+)
 
 router = APIRouter(
     prefix="/api/ai/invoices",
@@ -112,6 +114,17 @@ def analyze_invoice(
         invoice,
     )
 
+    policy_evidence = (
+    retrieve_invoice_policy_evidence(
+        db=db,
+        nonprofit_id=
+            current_user.nonprofit_id,
+        invoice=invoice,
+        analysis_result=result,
+        limit=5,
+    )
+)
+
     ai_extraction = None
     document_mismatches: list[str] = []
 
@@ -166,7 +179,7 @@ def analyze_invoice(
 
         result["extracted_data"] = {
             "source":
-                "ai_document_extraction",
+                "local_document_extraction",
 
             "document_id":
                 document.id,
@@ -179,6 +192,28 @@ def analyze_invoice(
 
             "mismatches":
                 document_mismatches,
+            
+            "policy_evidence":
+                policy_evidence,
+        }
+
+    if not ai_extraction:
+        system_record = dict(
+            result["extracted_data"]
+    )
+
+        result["extracted_data"] = {
+            "source":
+                "rules_analysis",
+
+            "system_record":
+                system_record,
+
+            "mismatches":
+                [],
+
+            "policy_evidence":
+                policy_evidence,
         }
 
     analysis = db.scalar(
@@ -241,9 +276,9 @@ def analyze_invoice(
                 ],
 
             analysis_version=(
-                "local_document_v1"
+                "local_document_rag_v1"
                 if ai_extraction
-                else "rules_v1"
+                else "rules_rag_v1"
             ),
         )
 
@@ -307,9 +342,9 @@ def analyze_invoice(
         )
 
         analysis.analysis_version = (
-            "local_document_v1"
+            "local_document_rag_v1"
             if ai_extraction
-            else "rules_v1"
+            else "rules_rag_v1"
         )
 
     db.commit()
