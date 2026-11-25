@@ -1572,6 +1572,224 @@ function InvoiceDetailPage() {
                             </p>
 
                         </div>
+                        {/* AGENTIC REVIEW RECOMMENDATION */}
+
+                        {aiAnalysis
+                            .extracted_data
+                            ?.agent && (
+
+                                <div className="agentic-review-card">
+
+                                    <div className="agentic-review-header">
+
+                                        <div>
+                                            <p className="agentic-review-eyebrow">
+                                                LangGraph Agent
+                                            </p>
+
+                                            <h3>
+                                                Agentic Review Recommendation
+                                            </h3>
+                                        </div>
+
+
+                                        <span
+                                            className={
+                                                `agent-recommendation-badge agent-recommendation-${aiAnalysis
+                                                    .extracted_data
+                                                    .agent
+                                                    .recommendation
+                                                }`
+                                            }
+                                        >
+                                            {
+                                                aiAnalysis
+                                                    .extracted_data
+                                                    .agent
+                                                    .recommendation
+                                                    ?.replaceAll(
+                                                        "_",
+                                                        " "
+                                                    )
+                                            }
+                                        </span>
+
+                                    </div>
+
+
+                                    <div className="agentic-review-grid">
+
+                                        <div>
+                                            <span>
+                                                Completeness Status
+                                            </span>
+
+                                            <strong>
+                                                {
+                                                    aiAnalysis
+                                                        .extracted_data
+                                                        .agent
+                                                        .completeness_status
+                                                        ?.replaceAll(
+                                                            "_",
+                                                            " "
+                                                        )
+                                                }
+                                            </strong>
+                                        </div>
+
+
+                                        <div>
+                                            <span>
+                                                Policy Context
+                                            </span>
+
+                                            <strong>
+                                                {
+                                                    aiAnalysis
+                                                        .extracted_data
+                                                        .agent
+                                                        .policy_context_available
+                                                        ? `${aiAnalysis
+                                                            .extracted_data
+                                                            .agent
+                                                            .policy_evidence_count
+                                                        } evidence chunk(s)`
+                                                        : "Not available"
+                                                }
+                                            </strong>
+                                        </div>
+
+                                    </div>
+
+
+                                    <div className="agentic-review-section">
+
+                                        <h4>
+                                            Recommendation Reasons
+                                        </h4>
+
+
+                                        {aiAnalysis
+                                            .extracted_data
+                                            .agent
+                                            .recommendation_reasons
+                                            ?.length ? (
+
+                                            <ul>
+                                                {
+                                                    aiAnalysis
+                                                        .extracted_data
+                                                        .agent
+                                                        .recommendation_reasons
+                                                        .map(
+                                                            (
+                                                                reason,
+                                                                index
+                                                            ) => (
+
+                                                                <li
+                                                                    key={
+                                                                        index
+                                                                    }
+                                                                >
+                                                                    {
+                                                                        reason
+                                                                    }
+                                                                </li>
+
+                                                            )
+                                                        )
+                                                }
+                                            </ul>
+
+                                        ) : (
+
+                                            <p>
+                                                No recommendation reasons
+                                                were generated.
+                                            </p>
+
+                                        )}
+
+                                    </div>
+
+
+                                    <div className="human-review-guardrail">
+
+                                        <div className="human-review-icon">
+                                            !
+                                        </div>
+
+
+                                        <div>
+
+                                            <strong>
+                                                Human Review Required
+                                            </strong>
+
+                                            <p>
+                                                This recommendation is
+                                                advisory only. The AI agent
+                                                cannot approve, reject, or
+                                                authorize payment for this
+                                                invoice. A manager or admin
+                                                must make the final financial
+                                                decision.
+                                            </p>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    {aiAnalysis
+                                        .extracted_data
+                                        .agent
+                                        .agent_trace
+                                        ?.length > 0 && (
+
+                                            <details className="agent-trace">
+
+                                                <summary>
+                                                    View Agent Execution Trace
+                                                </summary>
+
+
+                                                <ol>
+                                                    {
+                                                        aiAnalysis
+                                                            .extracted_data
+                                                            .agent
+                                                            .agent_trace
+                                                            .map(
+                                                                (
+                                                                    step,
+                                                                    index
+                                                                ) => (
+
+                                                                    <li
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            step
+                                                                        }
+                                                                    </li>
+
+                                                                )
+                                                            )
+                                                    }
+                                                </ol>
+
+                                            </details>
+
+                                        )}
+
+                                </div>
+
+                            )}
 
 
                         {/* RISK REASONS */}

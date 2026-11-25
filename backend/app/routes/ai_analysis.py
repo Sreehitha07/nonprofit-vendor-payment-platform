@@ -34,9 +34,15 @@ from app.services.invoice_analysis import (
     analyze_invoice_rules,
     compare_extracted_invoice,
 )
+
 from app.services.invoice_policy_rag import (
     retrieve_invoice_policy_evidence,
 )
+
+from app.services.invoice_agent_graph import (
+    run_invoice_agent,
+)
+
 
 router = APIRouter(
     prefix="/api/ai/invoices",
@@ -60,6 +66,10 @@ def analyze_invoice(
         )
     ),
 ):
+    # ---------------------------------------------------------
+    # 1. LOAD AND AUTHORIZE INVOICE
+    # ---------------------------------------------------------
+
     invoice = db.get(
         Invoice,
         invoice_id,
@@ -82,6 +92,10 @@ def analyze_invoice(
                 "to this invoice"
             ),
         )
+
+    # ---------------------------------------------------------
+    # 2. LOAD OPTIONAL SOURCE DOCUMENT
+    # ---------------------------------------------------------
 
     document = None
 
@@ -109,24 +123,27 @@ def analyze_invoice(
                 ),
             )
 
+    # ---------------------------------------------------------
+    # 3. RUN LOCAL DETERMINISTIC ANALYSIS
+    #
+    # Day 16:
+    # - completeness
+    # - duplicate detection
+    # - risk rules
+    # ---------------------------------------------------------
+
     result = analyze_invoice_rules(
         db,
         invoice,
     )
 
-    policy_evidence = (
-    retrieve_invoice_policy_evidence(
-        db=db,
-        nonprofit_id=
-            current_user.nonprofit_id,
-        invoice=invoice,
-        analysis_result=result,
-        limit=5,
-    )
-)
-
     ai_extraction = None
+
     document_mismatches: list[str] = []
+
+    # ---------------------------------------------------------
+    # 4. RUN LOCAL DOCUMENT EXTRACTION
+    # ---------------------------------------------------------
 
     if document is not None:
         try:
@@ -164,8 +181,12 @@ def analyze_invoice(
             )
         )
 
+        # Add document mismatches to the
+        # deterministic risk analysis.
         if document_mismatches:
-            result["risk_reasons"].extend(
+            result[
+                "risk_reasons"
+            ].extend(
                 document_mismatches
             )
 
@@ -176,6 +197,36 @@ def analyze_invoice(
                 result["risk_level"] = (
                     "needs_review"
                 )
+
+    # ---------------------------------------------------------
+    # 5. RUN LOCAL RAG POLICY RETRIEVAL
+    #
+    # This happens after document comparison so the RAG query
+    # receives the final risk/mismatch context.
+    # ---------------------------------------------------------
+
+    policy_evidence = (
+        retrieve_invoice_policy_evidence(
+            db=db,
+            nonprofit_id=(
+                current_user.nonprofit_id
+            ),
+            invoice=invoice,
+            analysis_result=result,
+            limit=5,
+        )
+    )
+
+    # ---------------------------------------------------------
+    # 6. BUILD EXPLAINABLE ANALYSIS PAYLOAD
+    # ---------------------------------------------------------
+
+    if ai_extraction:
+        system_record = dict(
+            result[
+                "extracted_data"
+            ]
+        )
 
         result["extracted_data"] = {
             "source":
@@ -188,19 +239,21 @@ def analyze_invoice(
                 ai_extraction.model_dump(),
 
             "system_record":
-                result["extracted_data"],
+                system_record,
 
             "mismatches":
                 document_mismatches,
-            
+
             "policy_evidence":
                 policy_evidence,
         }
 
-    if not ai_extraction:
+    else:
         system_record = dict(
-            result["extracted_data"]
-    )
+            result[
+                "extracted_data"
+            ]
+        )
 
         result["extracted_data"] = {
             "source":
@@ -216,6 +269,104 @@ def analyze_invoice(
                 policy_evidence,
         }
 
+    # ---------------------------------------------------------
+    # 7. RUN LANGGRAPH AGENTIC WORKFLOW
+    #
+    # Day 18:
+    #
+    # Analysis
+    #   -> Completeness
+    #   -> Risk
+    #   -> Policy context
+    #   -> Recommendation
+    #   -> Human review guardrail
+    #
+    # IMPORTANT:
+    # The agent never approves, rejects, or pays an invoice.
+    # ---------------------------------------------------------
+
+    try:
+        agent_result = run_invoice_agent(
+            invoice_id=invoice.id,
+            analysis_result=result,
+            policy_evidence=policy_evidence,
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Agentic invoice analysis "
+                f"failed: {str(exc)}"
+            ),
+        )
+
+    # Only store the useful agent-facing output.
+    #
+    # We intentionally do not store the entire LangGraph
+    # internal state because it would duplicate the complete
+    # analysis payload and policy evidence.
+
+    agent_output = {
+        "recommendation":
+            agent_result.get(
+                "recommendation",
+                "needs_review",
+            ),
+
+        "recommendation_reasons":
+            agent_result.get(
+                "recommendation_reasons",
+                [],
+            ),
+
+        "completeness_status":
+            agent_result.get(
+                "completeness_status",
+                "needs_review",
+            ),
+
+        "policy_context_available":
+            agent_result.get(
+                "policy_context_available",
+                False,
+            ),
+
+        "policy_evidence_count":
+            agent_result.get(
+                "policy_evidence_count",
+                0,
+            ),
+
+        "human_review_required":
+            agent_result.get(
+                "human_review_required",
+                True,
+            ),
+
+        "final_decision_allowed":
+            agent_result.get(
+                "final_decision_allowed",
+                False,
+            ),
+
+        "agent_trace":
+            agent_result.get(
+                "agent_trace",
+                [],
+            ),
+    }
+
+    result[
+        "extracted_data"
+    ][
+        "agent"
+    ] = agent_output
+
+    # ---------------------------------------------------------
+    # 8. SAVE / UPDATE ANALYSIS
+    # ---------------------------------------------------------
+
     analysis = db.scalar(
         select(
             AIInvoiceAnalysis
@@ -225,12 +376,19 @@ def analyze_invoice(
         )
     )
 
+    analysis_version = (
+        "local_document_agentic_rag_v1"
+        if ai_extraction
+        else "rules_agentic_rag_v1"
+    )
+
     if analysis is None:
         analysis = AIInvoiceAnalysis(
             invoice_id=invoice.id,
 
-            analyzed_by_user_id=
-                current_user.id,
+            analyzed_by_user_id=(
+                current_user.id
+            ),
 
             source_document_id=(
                 document.id
@@ -238,51 +396,60 @@ def analyze_invoice(
                 else None
             ),
 
-            analysis_status="completed",
+            analysis_status=(
+                "completed"
+            ),
 
-            completeness_score=
+            completeness_score=(
                 result[
                     "completeness_score"
-                ],
+                ]
+            ),
 
-            missing_fields=
+            missing_fields=(
                 result[
                     "missing_fields"
-                ],
+                ]
+            ),
 
-            duplicate_risk=
+            duplicate_risk=(
                 result[
                     "duplicate_risk"
-                ],
+                ]
+            ),
 
-            possible_duplicate_invoice_id=
+            possible_duplicate_invoice_id=(
                 result[
                     "possible_duplicate_invoice_id"
-                ],
+                ]
+            ),
 
-            risk_level=
+            risk_level=(
                 result[
                     "risk_level"
-                ],
+                ]
+            ),
 
-            risk_reasons=
+            risk_reasons=(
                 result[
                     "risk_reasons"
-                ],
+                ]
+            ),
 
-            extracted_data=
+            extracted_data=(
                 result[
                     "extracted_data"
-                ],
+                ]
+            ),
 
             analysis_version=(
-                "local_document_rag_v1"
-                if ai_extraction
-                else "rules_rag_v1"
+                analysis_version
             ),
         )
 
-        db.add(analysis)
+        db.add(
+            analysis
+        )
 
     else:
         analysis.analyzed_by_user_id = (
@@ -342,15 +509,17 @@ def analyze_invoice(
         )
 
         analysis.analysis_version = (
-            "local_document_rag_v1"
-            if ai_extraction
-            else "rules_rag_v1"
+            analysis_version
         )
 
     db.commit()
-    db.refresh(analysis)
+    db.refresh(
+        analysis
+    )
 
     return analysis
+
+
 @router.get(
     "/{invoice_id}/analysis",
     response_model=AIInvoiceAnalysisResponse,
