@@ -135,7 +135,7 @@ def test_manager_can_approve_invoice(
         headers=headers,
         json={
             "decision": "approved",
-            "comments": "Invoice verified."
+            "comments": "Invoice verified.",
         },
     )
 
@@ -183,7 +183,8 @@ def test_manager_can_reject_invoice_with_reason(
         headers=headers,
         json={
             "decision": "rejected",
-            "comments": "Invoice amount could not be verified.",
+            "comments":
+                "Invoice amount could not be verified.",
         },
     )
 
@@ -323,28 +324,55 @@ def test_vendor_can_resubmit_when_documents_requested(
         "REVIEW-TEST-006",
     )
 
-    client.post(
+    start_response = client.post(
         f"/api/invoices/{invoice_id}/review/start",
         headers=manager_headers,
         json={},
     )
+
+    assert start_response.status_code == 201
 
     request_documents = client.post(
         f"/api/invoices/{invoice_id}/review/decision",
         headers=manager_headers,
         json={
             "decision": "needs_documents",
-            "comments": "Please upload the purchase order.",
+            "comments":
+                "Please upload the purchase order.",
         },
     )
 
     assert request_documents.status_code == 201
+    assert (
+        request_documents.json()["new_status"]
+        == "needs_documents"
+    )
 
     vendor_headers = create_vendor_user(
         client,
         manager_account,
         vendor_id,
     )
+
+    upload_response = client.post(
+        f"/api/invoices/{invoice_id}/documents",
+        headers=vendor_headers,
+        data={
+            "document_type": "purchase_order",
+        },
+        files={
+            "file": (
+                "purchase_order.pdf",
+                (
+                    b"%PDF-1.4\n"
+                    b"Test purchase order document\n"
+                ),
+                "application/pdf",
+            ),
+        },
+    )
+
+    assert upload_response.status_code == 201
 
     response = client.post(
         f"/api/invoices/{invoice_id}/resubmit",
@@ -362,6 +390,135 @@ def test_vendor_can_resubmit_when_documents_requested(
     assert data["action"] == "resubmitted"
     assert data["previous_status"] == "needs_documents"
     assert data["new_status"] == "submitted"
+
+
+def test_review_history_records_full_workflow(
+    client,
+    manager_account,
+    nonprofit_and_vendor,
+):
+    nonprofit_id, vendor_id, manager_headers = (
+        nonprofit_and_vendor
+    )
+
+    invoice_id = create_invoice(
+        client,
+        nonprofit_id,
+        vendor_id,
+        manager_headers,
+        "REVIEW-TEST-008",
+    )
+
+    start_response = client.post(
+        f"/api/invoices/{invoice_id}/review/start",
+        headers=manager_headers,
+        json={
+            "comments": "First review."
+        },
+    )
+
+    assert start_response.status_code == 201
+
+    request_documents = client.post(
+        f"/api/invoices/{invoice_id}/review/decision",
+        headers=manager_headers,
+        json={
+            "decision": "needs_documents",
+            "comments": "Missing purchase order.",
+        },
+    )
+
+    assert request_documents.status_code == 201
+    assert (
+        request_documents.json()["new_status"]
+        == "needs_documents"
+    )
+
+    vendor_headers = create_vendor_user(
+        client,
+        manager_account,
+        vendor_id,
+    )
+
+    upload_response = client.post(
+        f"/api/invoices/{invoice_id}/documents",
+        headers=vendor_headers,
+        data={
+            "document_type": "purchase_order",
+        },
+        files={
+            "file": (
+                "purchase_order.pdf",
+                (
+                    b"%PDF-1.4\n"
+                    b"Test purchase order document\n"
+                ),
+                "application/pdf",
+            ),
+        },
+    )
+
+    assert upload_response.status_code == 201
+
+    resubmit_response = client.post(
+        f"/api/invoices/{invoice_id}/resubmit",
+        headers=vendor_headers,
+        json={
+            "comments": "Purchase order uploaded."
+        },
+    )
+
+    assert resubmit_response.status_code == 201
+
+    response = client.get(
+        f"/api/invoices/{invoice_id}/reviews",
+        headers=vendor_headers,
+    )
+
+    assert response.status_code == 200
+
+    history = response.json()
+
+    assert len(history) == 3
+
+    assert (
+        history[0]["action"]
+        == "started_review"
+    )
+    assert (
+        history[0]["previous_status"]
+        == "submitted"
+    )
+    assert (
+        history[0]["new_status"]
+        == "under_review"
+    )
+
+    assert (
+        history[1]["action"]
+        == "requested_documents"
+    )
+    assert (
+        history[1]["previous_status"]
+        == "under_review"
+    )
+    assert (
+        history[1]["new_status"]
+        == "needs_documents"
+    )
+
+    assert (
+        history[2]["action"]
+        == "resubmitted"
+    )
+    assert (
+        history[2]["previous_status"]
+        == "needs_documents"
+    )
+    assert (
+        history[2]["new_status"]
+        == "submitted"
+    )
 
 
 def test_vendor_cannot_resubmit_normal_submitted_invoice(
@@ -391,80 +548,9 @@ def test_vendor_cannot_resubmit_normal_submitted_invoice(
         f"/api/invoices/{invoice_id}/resubmit",
         headers=vendor_headers,
         json={
-            "comments": "Trying invalid resubmission."
+            "comments":
+                "Trying invalid resubmission."
         },
     )
 
     assert response.status_code == 409
-
-
-def test_review_history_records_full_workflow(
-    client,
-    manager_account,
-    nonprofit_and_vendor,
-):
-    nonprofit_id, vendor_id, manager_headers = (
-        nonprofit_and_vendor
-    )
-
-    invoice_id = create_invoice(
-        client,
-        nonprofit_id,
-        vendor_id,
-        manager_headers,
-        "REVIEW-TEST-008",
-    )
-
-    client.post(
-        f"/api/invoices/{invoice_id}/review/start",
-        headers=manager_headers,
-        json={
-            "comments": "First review."
-        },
-    )
-
-    client.post(
-        f"/api/invoices/{invoice_id}/review/decision",
-        headers=manager_headers,
-        json={
-            "decision": "needs_documents",
-            "comments": "Missing purchase order.",
-        },
-    )
-
-    vendor_headers = create_vendor_user(
-        client,
-        manager_account,
-        vendor_id,
-    )
-
-    client.post(
-        f"/api/invoices/{invoice_id}/resubmit",
-        headers=vendor_headers,
-        json={
-            "comments": "Purchase order uploaded."
-        },
-    )
-
-    response = client.get(
-        f"/api/invoices/{invoice_id}/reviews",
-        headers=vendor_headers,
-    )
-
-    assert response.status_code == 200
-
-    history = response.json()
-
-    assert len(history) == 3
-
-    assert history[0]["action"] == "started_review"
-    assert history[0]["previous_status"] == "submitted"
-    assert history[0]["new_status"] == "under_review"
-
-    assert history[1]["action"] == "requested_documents"
-    assert history[1]["previous_status"] == "under_review"
-    assert history[1]["new_status"] == "needs_documents"
-
-    assert history[2]["action"] == "resubmitted"
-    assert history[2]["previous_status"] == "needs_documents"
-    assert history[2]["new_status"] == "submitted"
