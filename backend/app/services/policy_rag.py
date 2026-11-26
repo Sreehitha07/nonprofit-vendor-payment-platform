@@ -1,6 +1,5 @@
 from functools import lru_cache
 
-from sentence_transformers import SentenceTransformer
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -18,10 +17,12 @@ CHUNK_OVERLAP_WORDS = 30
 
 
 @lru_cache(maxsize=1)
-def get_embedding_model() -> SentenceTransformer:
+def get_embedding_model():
     """
-    Load the local embedding model once and reuse it.
+    Load SentenceTransformers only when RAG is actually used.
     """
+    from sentence_transformers import SentenceTransformer
+
     return SentenceTransformer(
         MODEL_NAME
     )
