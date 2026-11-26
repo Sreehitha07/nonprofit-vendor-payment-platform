@@ -1978,3 +1978,436 @@ td {
   background: #fef2f2;
   color: #991b1b;
 }
+
+/* =========================================
+   DAY 22 - SHARED UI POLISH
+========================================= */
+
+/* ---------- SECTIONS ---------- */
+
+.dashboard-section {
+  margin-bottom: 24px;
+  padding: 24px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 4px 12px rgba(15, 23, 42, 0.025);
+}
+
+
+/* ---------- TABLES ---------- */
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  background: #ffffff;
+}
+
+.table-wrapper table {
+  width: 100%;
+  min-width: 700px;
+
+  border-collapse: collapse;
+}
+
+.table-wrapper th {
+  padding: 12px 14px;
+
+  background: #f9fafb;
+
+  color: #6b7280;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+
+  white-space: nowrap;
+}
+
+.table-wrapper td {
+  padding: 13px 14px;
+
+  border-top: 1px solid #f1f5f9;
+
+  color: #374151;
+  font-size: 13px;
+
+  vertical-align: middle;
+}
+
+.table-wrapper tbody tr {
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.table-wrapper tbody tr:hover {
+  background: #f8fafc;
+}
+
+
+/* ---------- STATUS BADGES ---------- */
+
+.table-status,
+.detail-status {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 5px 9px;
+
+  border: 1px solid #dbe3ea;
+  border-radius: 999px;
+
+  background: #f8fafc;
+  color: #475569;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  line-height: 1.2;
+
+  text-transform: capitalize;
+
+  white-space: nowrap;
+}
+
+.detail-status {
+  padding: 7px 11px;
+}
+
+
+/* ---------- EMPTY STATES ---------- */
+
+.empty-state {
+  display: flex;
+
+  min-height: 120px;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 28px 20px;
+
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+
+  background: #f8fafc;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 500;
+
+  line-height: 1.6;
+  text-align: center;
+}
+
+
+/* ---------- ERROR / SUCCESS ---------- */
+
+.error-message,
+.success-message {
+  margin-bottom: 18px;
+
+  padding: 12px 14px;
+
+  border-radius: 9px;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  line-height: 1.5;
+}
+
+.error-message {
+  border: 1px solid #fecaca;
+
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.success-message {
+  border: 1px solid #bbf7d0;
+
+  background: #ecfdf5;
+  color: #166534;
+}
+
+.detail-message {
+  margin-top: 14px;
+}
+
+
+/* ---------- BUTTONS ---------- */
+
+.primary-button,
+.secondary-button,
+.decision-button,
+.small-button,
+.notification-read-button {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.primary-button:not(:disabled):hover,
+.secondary-button:not(:disabled):hover,
+.decision-button:not(:disabled):hover,
+.small-button:not(:disabled):hover,
+.notification-read-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.decision-button:focus-visible,
+.small-button:focus-visible,
+.notification-read-button:focus-visible {
+  outline: 3px solid rgba(99, 102, 241, 0.18);
+  outline-offset: 2px;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled,
+.decision-button:disabled,
+.small-button:disabled,
+.notification-read-button:disabled {
+  cursor: not-allowed;
+
+  opacity: 0.55;
+
+  transform: none;
+
+  box-shadow: none;
+}
+
+
+/* ---------- FORM FOCUS ---------- */
+
+input,
+select,
+textarea {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+
+  border-color: #818cf8;
+
+  box-shadow:
+    0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+
+/* ---------- LINKS ---------- */
+
+.dashboard-invoice-link {
+  transition: color 0.15s ease;
+}
+
+.dashboard-invoice-link:hover {
+  color: #1e40af;
+}
+
+
+/* ---------- RESPONSIVE POLISH ---------- */
+
+@media (max-width: 768px) {
+  .dashboard-section {
+    padding: 18px;
+    border-radius: 11px;
+  }
+
+  .table-wrapper {
+    border-radius: 8px;
+  }
+
+  .table-wrapper th,
+  .table-wrapper td {
+    padding: 11px 12px;
+  }
+
+  .empty-state {
+    min-height: 100px;
+    padding: 22px 16px;
+  }
+
+  .error-message,
+  .success-message {
+    padding: 11px 12px;
+  }
+}
+
+
+@media (max-width: 520px) {
+  .dashboard-section {
+    padding: 15px;
+  }
+
+  .detail-status {
+    padding: 6px 9px;
+  }
+}
+
+/* =========================================
+   DAY 22 - STATUS COLORS
+========================================= */
+
+/* BLUE - submitted / informational */
+
+.status-submitted {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+
+/* PURPLE - active processing/review */
+
+.status-under_review,
+.status-processing {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+}
+
+
+/* AMBER - waiting / action required */
+
+.status-needs_documents,
+.status-scheduled,
+.status-pending {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+
+/* GREEN - successful / approved */
+
+.status-approved,
+.status-completed,
+.status-active {
+  border-color: #bbf7d0;
+  background: #ecfdf5;
+  color: #166534;
+}
+
+
+/* RED - unsuccessful / rejected */
+
+.status-rejected,
+.status-failed,
+.status-inactive {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+
+/* NEUTRAL - draft / cancelled / unknown */
+
+.status-draft,
+.status-cancelled {
+  border-color: #d1d5db;
+  background: #f9fafb;
+  color: #4b5563;
+}
+
+/* =========================================
+   DAY 22 - LOADING STATES
+========================================= */
+
+.loading-state {
+  display: flex;
+
+  min-height: 120px;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 10px;
+
+  padding: 28px 20px;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+
+  border: 2px solid #e2e8f0;
+  border-top-color: #6366f1;
+
+  border-radius: 50%;
+
+  animation: loading-spin 0.7s linear infinite;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+/* =========================================
+   DAY 22 - EMPTY STATE CONTENT
+========================================= */
+
+.empty-state > div {
+  max-width: 420px;
+}
+
+.empty-state strong {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.empty-state p {
+  margin: 0;
+
+  color: #64748b;
+
+  font-size: 12px;
+  font-weight: 400;
+
+  line-height: 1.6;
+}

@@ -789,9 +789,10 @@ function InvoiceDetailPage() {
     if (loading) {
         return (
             <div className="page">
-                <p>
-                    Loading invoice...
-                </p>
+                <div className="loading-state">
+                    <span className="loading-spinner" />
+                    <span>Loading invoice...</span>
+                </div>
             </div>
         );
     }
@@ -889,7 +890,7 @@ function InvoiceDetailPage() {
                     </p>
                 </div>
 
-                <span className="detail-status">
+                <span className={`detail-status status-${invoice.status}`}>
                     {
                         invoice.status
                             .replaceAll(
@@ -1232,8 +1233,12 @@ function InvoiceDetailPage() {
                 {documents.length ===
                     0 ? (
                     <div className="empty-state">
-                        No supporting
-                        documents uploaded.
+                        <div>
+                            <strong>No supporting documents</strong>
+                            <p>
+                                Supporting invoice documents have not been uploaded yet.
+                            </p>
+                        </div>
                     </div>
                 ) : (
 
@@ -2637,7 +2642,12 @@ function InvoiceDetailPage() {
                 {reviews.length === 0 ? (
 
                     <div className="empty-state">
-                        No review activity yet.
+                        <div>
+                            <strong>No review activity yet</strong>
+                            <p>
+                                Review actions will appear here as the invoice moves through the workflow.
+                            </p>
+                        </div>
                     </div>
 
                 ) : (

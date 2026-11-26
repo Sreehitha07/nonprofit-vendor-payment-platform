@@ -343,10 +343,18 @@ function VendorsPage() {
         </div>
 
         {loading ? (
-          <p>Loading vendors...</p>
+          <div className="loading-state">
+            <span className="loading-spinner" />
+            <span>Loading vendors...</span>
+        </div>
         ) : vendors.length === 0 ? (
-          <div className="empty-state">
-            No vendors found.
+            <div className="empty-state">
+            <div>
+              <strong>No payments found</strong>
+              <p>
+                Payments will appear here after approved invoices are scheduled.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="table-wrapper">
@@ -388,7 +396,7 @@ function VendorsPage() {
                     </td>
 
                     <td>
-                      <span className="table-status">
+                      <span className={`table-status status-${vendor.status}`}>
                         {vendor.status}
                       </span>
                     </td>

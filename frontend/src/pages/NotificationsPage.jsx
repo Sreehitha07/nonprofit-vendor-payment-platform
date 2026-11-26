@@ -206,14 +206,20 @@ import {
   
         <section className="dashboard-section">
           {loading ? (
-            <p>
-              Loading notifications...
-            </p>
+            <div className="loading-state">
+                <span className="loading-spinner" />
+                <span>Loading notifications...</span>
+          </div>
           ) : notifications.length ===
             0 ? (
-            <div className="empty-state">
-              No notifications found.
-            </div>
+                <div className="empty-state">
+                <div>
+                  <strong>No notifications</strong>
+                  <p>
+                    Workflow and payment updates will appear here.
+                  </p>
+                </div>
+              </div>
           ) : (
             <div className="notification-list">
               {notifications.map(

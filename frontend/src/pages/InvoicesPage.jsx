@@ -726,10 +726,18 @@ function InvoicesPage() {
         </div>
 
         {loading ? (
-          <p>Loading invoices...</p>
+          <div className="loading-state">
+            <span className="loading-spinner" />
+            <span>Loading invoices...</span>
+        </div>
         ) : invoices.length === 0 ? (
-          <div className="empty-state">
-            No invoices found.
+            <div className="empty-state">
+            <div>
+              <strong>No invoices found</strong>
+              <p>
+                No invoices match the current filters.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="table-wrapper">
@@ -790,7 +798,7 @@ function InvoicesPage() {
                       </td>
 
                       <td>
-                        <span className="table-status">
+                        <span className={'table-status status-${invoice.status}'}>
                           {invoice.status.replaceAll(
                             "_",
                             " "
