@@ -44,3 +44,6 @@ openai==3.53.0
 pytesseract==0.3.13
 pgvector==0.5.1
 sentence-transformers==6.3.0
+langgraph==1.2.24
+pillow==13.0.0
+pymupdf==2.1
